@@ -11,6 +11,7 @@ test('location, postcode, alerts, refresh, failures and mobile layout', async()=
  await page.route('**/api/alerts/**',r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));
  let floods=0, mode='alerts';
  await page.route('https://api.open-meteo.com/**',route=>route.fulfill({json:{daily:{time:['2026-11-04'],weather_code:[61],temperature_2m_max:[12],temperature_2m_min:[7],precipitation_probability_max:[80]}}}));
+ await page.route('https://air-quality-api.open-meteo.com/**',r=>r.abort());
  await page.route('https://tile.openstreetmap.org/**',route=>route.abort());
  await page.route('https://api.postcodes.io/**',route=>route.fulfill({json:{result:{latitude:51.5,longitude:-0.12,postcode:'SW1A 1AA',country:'England'}}}));
  await page.route('https://environment.data.gov.uk/**',route=>{

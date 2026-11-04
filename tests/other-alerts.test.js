@@ -6,6 +6,7 @@ test('other alerts filter, refresh, partial failures and UK coverage render accu
  try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  let weatherError=false,scotland=false;
+ await page.route('https://air-quality-api.open-meteo.com/**',r=>r.abort());
  await page.route('https://tile.openstreetmap.org/**',r=>r.abort());
  await page.route('https://api.postcodes.io/**',r=>r.fulfill({json:{result:{latitude:scotland?55.95:51.5,longitude:scotland?-3.19:-.12,postcode:scotland?'EH1 1AA':'SW1A 1AA',country:scotland?'Scotland':'England'}}}));
  await page.route('https://environment.data.gov.uk/**',r=>r.fulfill({json:{items:[]}}));
@@ -15,6 +16,7 @@ test('other alerts filter, refresh, partial failures and UK coverage render accu
   const checkedAt='2026-11-04T12:00:00Z';
   if(url.pathname.endsWith('weather'))return weatherError?r.fulfill({status:502,json:{error:'Unavailable'}}):r.fulfill({json:{checkedAt,items:[{id:'weather1',title:'Test amber rain warning',severity:'Amber',scope:'UK feed · location not supplied',description:'Test fixture only',link:'https://www.metoffice.gov.uk/weather/warnings-and-advice/uk-warnings'}]}});
   if(url.pathname.endsWith('traffic'))return r.fulfill({json:{checkedAt,items:[{id:'road1',title:'Test road closure',severity:'Serious',scope:'TfL London roads · reported point within radius',description:'Test closure fixture',link:'https://tfl.gov.uk/traffic/status/'}]}});
+  if(url.pathname.endsWith('transport'))return r.fulfill({json:{checkedAt,items:[],coverageEligible:true}});
   return r.fulfill({json:{checkedAt,neighbourhood:{name:'Test neighbourhood',link:'https://www.met.police.uk/area'}}});
  });
  await page.goto(process.env.TEST_BASE_URL||'http://127.0.0.1:5173');assert.equal(await page.title(),'Neighbour — Alerts near you');

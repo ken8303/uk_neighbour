@@ -25,11 +25,11 @@ export function officialLink(alert) {
 
 export async function loadForecast(location, signal) {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
-  url.search = new URLSearchParams({latitude:location.lat, longitude:location.lon, daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone:'Europe/London', forecast_days:7});
+  url.search = new URLSearchParams({latitude:location.lat, longitude:location.lon, daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_gusts_10m_max,precipitation_sum', wind_speed_unit:'kmh', temperature_unit:'celsius', precipitation_unit:'mm', timezone:'Europe/London', forecast_days:7});
   const data = await getJSON(url, signal);
   const d=data.daily;
   if (!Array.isArray(d?.time) || !d.time.length || !Array.isArray(d.temperature_2m_max) || !Array.isArray(d.temperature_2m_min)) throw new Error('The weather service returned an unexpected response.');
-  return d.time.map((date,i)=>({date,code:d.weather_code?.[i],high:d.temperature_2m_max[i],low:d.temperature_2m_min[i],rain:d.precipitation_probability_max?.[i]}));
+  return d.time.map((date,i)=>({date,code:d.weather_code?.[i],high:d.temperature_2m_max[i],low:d.temperature_2m_min[i],rain:d.precipitation_probability_max?.[i],uv:d.uv_index_max?.[i],gust:d.wind_gusts_10m_max?.[i],precipitation:d.precipitation_sum?.[i]}));
 }
 
 // Flood areas are represented by the EA's published reference points, not boundaries.
@@ -53,4 +53,12 @@ export async function loadFloodPoints(alerts, signal) {
     }
   }));
   return points;
+}
+
+export async function loadAirQuality(location,signal){
+ const url=new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
+ url.search=new URLSearchParams({latitude:location.lat,longitude:location.lon,current:'european_aqi,pm2_5,pm10',hourly:'european_aqi',forecast_days:2,timezone:'Europe/London',timeformat:'unixtime'});
+ const data=await getJSON(url,signal);
+ if(!Number.isFinite(data.current?.time)||!Number.isFinite(data.current?.european_aqi)||data.current.european_aqi<0)throw new Error('Air-quality data unavailable');
+ return {current:data.current,hourly:data.hourly||{}};
 }

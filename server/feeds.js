@@ -4,6 +4,7 @@ export const SOURCES = {
  weather: 'https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/UK',
  traffic: 'https://api.tfl.gov.uk/Road/All/Disruption',
  safety: 'https://data.police.uk/api/',
+ transport: 'https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line,tram/Status',
 };
 const text = value => String(value?.['#text'] ?? value ?? '').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 export function safeSourceLink(value, suffix, fallback) {
@@ -62,6 +63,15 @@ export function parseTraffic(data,location,radius,now=Date.now()) {
   return [{id:String(item.id),title:text(item.location||item.corridor||'Road disruption').slice(0,250),description:text(item.comments||item.currentUpdate||item.category).slice(0,1200),severity:text(item.severity)||'Disruption',category:text(item.subCategory||item.category)||'Traffic disruption',scope:'TfL London roads · reported point within radius',updated:item.lastModifiedTime||null,lat:point.lat,lon:point.lon,link:'https://tfl.gov.uk/traffic/status/'}];
  });
 }
+export function parseTransport(data,now=Date.now()){
+ if(!Array.isArray(data))throw new Error('Unexpected public transport response');
+ return data.flatMap(line=>(Array.isArray(line.lineStatuses)?line.lineStatuses:[]).flatMap(status=>{
+  if(status.statusSeverity===10||!status.statusSeverityDescription)return [];
+  const periods=status.validityPeriods;
+  if(Array.isArray(periods)&&periods.length&&!periods.some(p=>{const start=Date.parse(p.fromDate),end=Date.parse(p.toDate);return (!Number.isFinite(start)||start<=now)&&(!Number.isFinite(end)||end>=now)}))return [];
+  return [{id:`${line.id}-${status.id??status.statusSeverity}`,title:String(line.name||'TfL line'),severity:String(status.statusSeverityDescription),description:String(status.reason||'Check TfL for details and affected stops.').slice(0,1500),scope:'London network-wide status · not a nearby-station match',link:'https://tfl.gov.uk/tube-dlr-overground/status/'}];
+ }));
+}
 const cache=new Map();
 async function upstream(url,format,fetcher,{cacheable=false,notFound=false}={}){
  const cached=cacheable&&cache.get(url);
@@ -77,6 +87,10 @@ export async function getFeed(type,location,radius,fetcher=fetch){
  const checkedAt=new Date().toISOString();
  if(type==='weather')return {items:parseWeather(await upstream(SOURCES.weather,'xml',fetcher,{cacheable:true}),location,radius),checkedAt,coverage:'Met Office UK warning feed; only warnings with published polygons can be matched to your radius.'};
  if(type==='traffic')return {items:parseTraffic(await upstream(SOURCES.traffic,'json',fetcher,{cacheable:true}),location,radius),checkedAt,coverage:'TfL London roads only. Closures and disruptions elsewhere are not included.'};
+ if(type==='transport'){
+  if(distanceKm(location,{lat:51.5074,lon:-0.1278})>60)return {items:[],coverageEligible:false,checkedAt};
+  return {items:parseTransport(await upstream(SOURCES.transport,'json',fetcher,{cacheable:true})),coverageEligible:true,checkedAt};
+ }
  if(type==='safety'){
   const found=await upstream(`${SOURCES.safety}locate-neighbourhood?q=${location.lat},${location.lon}`,'json',fetcher,{notFound:true});
   if(!found)return {neighbourhood:null,checkedAt};

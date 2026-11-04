@@ -5,6 +5,7 @@ import { lookupPostcode, loadFloods, officialLink } from './api';
 import AreaMap from './AreaMap';
 import Forecast from './Forecast';
 import OtherAlerts from './OtherAlerts';
+import EnvironmentAdvisories from './EnvironmentAdvisories';
 import { loadForecast } from './api';
 import './style.css';
 
@@ -56,8 +57,19 @@ function App(){
   }),radius)}
   return <div className="shell"><header><a className="brand" href="./"><MapPin size={34}/><span>Neighbour</span></a><a href="#about">About alerts</a></header>
     <main><div className="intro"><h1>Know what’s happening near you.</h1><p>Find flood alerts, weather warnings, traffic updates and safety information near you.</p><p className="coverage">Floods: England · Weather: UK feed · Traffic: London live feed · Safety: official links</p></div>
-      <div className="workspace"><LocationForm busy={state.status==='loading'} onLocate={locate} onSearch={(p,r)=>search(()=>lookupPostcode(p),r)}/><div className="area-column"><AreaMap location={state.location} radius={state.radius} alerts={state.alerts} floodStatus={state.status}/><Forecast {...weather} location={state.location} onRefresh={()=>refreshWeather(state.location)}/></div><Results {...state} onRefresh={()=>search(()=>Promise.resolve(state.location),state.radius)}/><OtherAlerts location={state.location} radius={state.radius}/></div>
-      <section id="about" className="about"><h2>Official sources. Local information.</h2><p>Flood warnings and alerts are supplied by the Environment Agency under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noreferrer">Open Government Licence</a>. Results are checked when you search or refresh; this site does not send background notifications. Searches use the flood service’s location-radius matching, not your property’s individual flood risk.</p><p>Your coordinates are sent to the Environment Agency and Open-Meteo for alerts and forecasts, and to our server for matching weather and traffic reports and finding your police neighbourhood. The police lookup sends coordinates to data.police.uk; Met Office and TfL feeds are filtered on our server. Postcodes are sent to Postcodes.io. Map tiles come from OpenStreetMap, which receives your IP address and the map area viewed. We don’t store your location.</p><div className="nation-links"><a href="https://check-for-flooding.service.gov.uk/" target="_blank" rel="noreferrer">England <ArrowUpRight size={14}/></a><a href="https://floodline.sepa.org.uk/floodupdates/" target="_blank" rel="noreferrer">Scotland <ArrowUpRight size={14}/></a><a href="https://flood-warning.naturalresources.wales/" target="_blank" rel="noreferrer">Wales <ArrowUpRight size={14}/></a><a href="https://www.nidirect.gov.uk/articles/check-risk-flooding-your-area" target="_blank" rel="noreferrer">Northern Ireland <ArrowUpRight size={14}/></a></div><p className="emergency">If there is immediate danger to life, call 999.</p></section>
+      <div className="workspace">
+        <div className="left-column">
+          <LocationForm busy={state.status==='loading'} onLocate={locate} onSearch={(p,r)=>search(()=>lookupPostcode(p),r)}/>
+          <Results {...state} onRefresh={()=>search(()=>Promise.resolve(state.location),state.radius)}/>
+          <OtherAlerts location={state.location} radius={state.radius}/>
+        </div>
+        <div className="area-column">
+          <AreaMap location={state.location} radius={state.radius} alerts={state.alerts} floodStatus={state.status}/>
+          <Forecast {...weather} location={state.location} onRefresh={()=>refreshWeather(state.location)}/>
+          <EnvironmentAdvisories location={state.location} days={weather.days} status={weather.status}/>
+        </div>
+      </div>
+      <section id="about" className="about"><h2>Official sources. Local information.</h2><p>Flood warnings and alerts are supplied by the Environment Agency under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noreferrer">Open Government Licence</a>. Results are checked when you search or refresh; this site does not send background notifications. Searches use the flood service’s location-radius matching, not your property’s individual flood risk.</p><p>Your coordinates are sent to the Environment Agency and Open-Meteo for alerts, weather and air-quality forecasts, and to our server for matching weather and traffic reports and finding your police neighbourhood. The police lookup sends coordinates to data.police.uk; Met Office and TfL feeds are filtered on our server. Postcodes are sent to Postcodes.io. Map tiles come from OpenStreetMap, which receives your IP address and the map area viewed. We don’t store your location.</p><div className="nation-links"><a href="https://check-for-flooding.service.gov.uk/" target="_blank" rel="noreferrer">England <ArrowUpRight size={14}/></a><a href="https://floodline.sepa.org.uk/floodupdates/" target="_blank" rel="noreferrer">Scotland <ArrowUpRight size={14}/></a><a href="https://flood-warning.naturalresources.wales/" target="_blank" rel="noreferrer">Wales <ArrowUpRight size={14}/></a><a href="https://www.nidirect.gov.uk/articles/check-risk-flooding-your-area" target="_blank" rel="noreferrer">Northern Ireland <ArrowUpRight size={14}/></a></div><p className="emergency">If there is immediate danger to life, call 999.</p></section>
     </main><footer>Neighbour <span>Stay aware. Stay prepared.</span></footer></div>
 }
 createRoot(document.getElementById('root')).render(<App/>);

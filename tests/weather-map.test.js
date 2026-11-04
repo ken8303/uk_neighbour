@@ -9,6 +9,7 @@ test('forecast and flood map work independently with accessible mobile controls'
  const page=await context.newPage();
  await page.route('**/api/alerts/**',r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));let weatherFails=false,floodFails=false;const errors=[];
  page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://air-quality-api.open-meteo.com/**',r=>r.abort());
  await page.route('https://tile.openstreetmap.org/**',r=>r.abort());
  await page.route('https://api.postcodes.io/**',r=>r.fulfill({json:{result:{latitude:51.5,longitude:-0.12,postcode:'SW1A 1AA',country:'England'}}}));
  await page.route('https://environment.data.gov.uk/**',r=>{

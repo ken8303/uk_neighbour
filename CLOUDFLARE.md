@@ -69,8 +69,14 @@ The default `npm run dev` and `npm start` remain available for Vite development 
 - Production Vite build and Wrangler deployment dry run passed.
 - Wrangler’s actual local Workers runtime served HTML and the built JavaScript successfully.
 - Runtime API checks returned the expected JSON 400, 404 and 405 responses, including empty-coordinate validation. A blocked provider returned JSON 502.
-- All 12 tests passed with the three browser flows targeting the local Workers runtime, including desktop/mobile interaction coverage. The tests use provider fixtures; they do not prove live upstream availability.
+- All 17 tests passed with four browser flows targeting the local Workers runtime, including desktop/mobile interaction coverage. The tests use provider fixtures; they do not prove live upstream availability.
 
-No Cloudflare deployment or account authentication was performed. Live provider requests are still blocked by this workspace’s outbound policy. Cloudflare-side upstream access, provider schema/permission changes, and browser CORS must be checked on the deployed origin. Existing coverage limitations remain: flood data is England-only, live traffic covers TfL roads in London, weather entries without polygons are not confirmed local, and safety is official links plus police-neighbourhood lookup rather than live incidents.
+No Cloudflare deployment or account authentication was performed. The original live provider checks were blocked by workspace policy. Since environment publication, weather/Met Office/TfL live checks succeeded; the new air-quality host is still blocked pending its saved domain addition. Cloudflare-side upstream access, provider schema/permission changes, and browser CORS must be checked on the deployed origin. Existing coverage limitations remain: flood data is England-only, live traffic covers TfL roads in London, weather entries without polygons are not confirmed local, and safety is official links plus police-neighbourhood lookup rather than live incidents.
 
 Reference: https://developers.cloudflare.com/workers/static-assets/
+
+## Expanded advisories
+
+The Worker also serves `/api/alerts/transport` for TfL rail mode statuses. Health, food, power and water sections are labelled official-link directories, not live feeds. Air-quality forecasts are fetched by the browser from `air-quality-api.open-meteo.com`; allow that host in your development environment. UV and weather app advisories reuse the weather forecast, with explicit thresholds and missing-data states. No new Cloudflare bindings or application secrets are needed. See README.md for exact coverage, freshness and calculation rules.
+
+Expanded-coverage validation: all 17 tests also pass against the updated local Worker. A live TfL fetch succeeds in Node but fails even in a minimal standalone local diagnostic Worker with a runtime DNS lookup failure (temporary failure in name resolution). This local-runtime egress limitation is separate from application parsing; verify upstream reachability on the deployed Worker before claiming live service readiness.
