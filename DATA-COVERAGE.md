@@ -22,3 +22,17 @@ Visual target: the user requested both a NERV-like experience and visual style. 
 ## Fuel prices
 
 E10, E5 and B7 comparisons use provisional public retailer JSON adapters for ASDA, Sainsbury’s, Morrisons and Tesco. Live access remains unverified because their hosts are blocked by this environment's active policy. Comparisons include only qualifying reports from connected sources; they do not cover every station. See [fuel source status and validation](FUEL-PRICES.md).
+
+## Power outage sources
+
+UKPN and NGED power-cut links are available under Utilities. Their live feeds, outages.uk and Gisual remain unconnected pending documentation/access verification. The attempted research-domain draft update could not be saved (`draft_not_editable`). See [power outage status and proposed domains](POWER-OUTAGES.md).
+
+## Transport expansion
+
+TfL bus route status is connected alongside the existing TfL rail modes. An anonymous live endpoint check returned 200 on 5 November 2026; deployed Worker access remains to be checked. All seven requested transport source families appear in the transport source catalog, but only TfL status data is connected. See [transport access status and remaining blockers](TRANSPORT-SOURCES.md).
+
+Nearby TfL stop searches and arrival predictions are also connected, with real bus and Westminster station JSON verified on 5 November 2026. The board is opt-in, searches within 1 km, polls only the selected stop and expires stale predictions. It is not a national departure service. The research-domain draft still cannot be saved; proposed settings are preserved in `provider-network-proposal.json` without activation.
+
+TfL cycle-hire availability and London-area public transport journey planning are now connected. Both raw endpoints and completed adapters were checked against live JSON on 5 November 2026. Tools load only when opened (journeys also require submission); inventory freshness, route completeness and provider coverage remain explicit. National/commercial source blockers are unchanged.
+
+The GB rail station finder uses a pinned, licensed public reference dataset (2,609 records; source commit dated 7 October 2026). It supports England, Wales and Scotland, including nearby Scottish/Welsh matches outside TfL coverage. It is not live departures or a station-opening/accessibility check. National Rail provider access is still blocked. The raw dataset, ODbL licence and source attribution are distributed with the site.

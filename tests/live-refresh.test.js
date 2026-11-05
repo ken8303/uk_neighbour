@@ -12,7 +12,7 @@ test('automatic feeds pause when hidden/offline, resume, retain failed results a
   await page.route('**/api/alerts/postcode?**',r=>r.fulfill({json:{location:{lat:latitude,lon:-.12,label:latitude===51.5?'SW1A 1AA':'CB1 1AA',country:'England'}}}));
   await page.route('**/api/alerts/flood*',r=>r.fulfill({json:{items:[]}}));
   await page.route('**/api/alerts/forecast?**',r=>r.fulfill({json:{days:forecastFixture({time:['2026-11-04'],weather_code:[0],temperature_2m_max:[12],temperature_2m_min:[7]})}}));
-  await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|fuel)\?/,async r=>{
+  await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|buses|fuel)\?/,async r=>{
    if(r.request().url().includes('/weather?')){
     const number=++calls;
     if(hold&&new URL(r.request().url()).searchParams.get('lat')==='51.5'){blocked=true;await new Promise(resolve=>release=resolve);}

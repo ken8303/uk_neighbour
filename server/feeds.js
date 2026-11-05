@@ -6,6 +6,7 @@ export const SOURCES = {
  traffic: 'https://api.tfl.gov.uk/Road/All/Disruption',
  highways: 'https://m.highwaysengland.co.uk/feeds/rss/UnplannedEvents.xml',
  safety: 'https://data.police.uk/api/',
+ buses: 'https://api.tfl.gov.uk/Line/Mode/bus/Status',
  transport: 'https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line,tram/Status',
 };
 const text = value => String(value?.['#text'] ?? value ?? '').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
@@ -85,11 +86,11 @@ export function parseHighways(xml,location,radius,now=Date.now()){
 }
 export function parseTransport(data,now=Date.now()){
  if(!Array.isArray(data))throw new Error('Unexpected public transport response');
- return data.flatMap(line=>(Array.isArray(line.lineStatuses)?line.lineStatuses:[]).flatMap(status=>{
+ return data.filter(line=>line&&typeof line==='object').flatMap(line=>(Array.isArray(line.lineStatuses)?line.lineStatuses:[]).filter(status=>status&&typeof status==='object').flatMap((status,index)=>{
   if(status.statusSeverity===10||!status.statusSeverityDescription)return [];
   const periods=status.validityPeriods;
   if(Array.isArray(periods)&&periods.length&&!periods.some(p=>{const start=Date.parse(p.fromDate),end=Date.parse(p.toDate);return (!Number.isFinite(start)||start<=now)&&(!Number.isFinite(end)||end>=now)}))return [];
-  return [{id:`${line.id}-${status.id??status.statusSeverity}`,title:String(line.name||'TfL line'),severity:String(status.statusSeverityDescription),description:String(status.reason||'Check TfL for details and affected stops.').slice(0,1500),scope:'London network-wide status · not a nearby-station match',link:'https://tfl.gov.uk/tube-dlr-overground/status/'}];
+  return [{id:`${line.id}-${status.id??status.statusSeverity}-${index}`,title:line.modeName==='bus'?`Bus ${String(line.name||line.id||'route')}`:String(line.name||'TfL line'),severity:String(status.statusSeverityDescription),description:String(status.reason||'Check TfL for details and affected stops.').slice(0,1500),scope:line.modeName==='bus'?'London bus route status · not a nearby-stop match':'London network-wide status · not a nearby-station match',planned:status.disruption?.category==='PlannedWork',link:line.modeName==='bus'?'https://tfl.gov.uk/bus/status/':'https://tfl.gov.uk/tube-dlr-overground/status/'}];
  }));
 }
 function stamp(snapshot){return {checkedAt:snapshot.meta.verifiedAt,freshness:snapshot.meta}}
@@ -107,9 +108,9 @@ export async function getFeed(type,location,radius,fetcher=fetch){
   const result=await read(SOURCES.highways,'xml',{cacheable:true,validate:xml=>parseHighways(xml,location,radius)});
   return {...parseHighways(result.value,location,radius),...stamp(result),coverage:'England motorways and major A-roads managed by National Highways only; local roads and other UK nations are not covered.'};
  }
- if(type==='transport'){
+ if(type==='transport'||type==='buses'){
   if(distanceKm(location,{lat:51.5074,lon:-0.1278})>60)return {items:[],coverageEligible:false,checkedAt:new Date().toISOString()};
-  const result=await read(SOURCES.transport,'json',{cacheable:true,validate:data=>parseTransport(data)});
+  const result=await read(SOURCES[type],'json',{cacheable:true,validate:data=>parseTransport(data)});
   return {items:parseTransport(result.value),coverageEligible:true,...stamp(result)};
  }
  if(type==='safety'){
