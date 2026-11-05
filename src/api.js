@@ -1,35 +1,38 @@
 export async function getJSON(url, signal) {
-  const response = await fetch(url, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
+  const response = await fetch(url, { cache:'no-store', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(response.status === 404 ? 'Postcode not found. Check it and try again.' : 'The alert or location service is unavailable. Please try again shortly.');
   return response.json();
 }
-export async function lookupPostcode(postcode, signal) {
-  const value = postcode.replace(/\s/g, '').toUpperCase();
-  if (!/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(value)) throw new Error('Enter a valid UK postcode, such as SW1A 1AA.');
-  const data = await getJSON(`https://api.postcodes.io/postcodes/${encodeURIComponent(value)}`, signal);
-  if (!data.result) throw new Error('Postcode not found. Check it and try again.');
-  return { lat: data.result.latitude, lon: data.result.longitude, label: data.result.postcode, country: data.result.country };
+function query(location,radius=25){return new URLSearchParams({lat:location.lat,lon:location.lon,radius})}
+function withFreshness(items,data){items.freshness=data.freshness;return items;}
+export async function lookupPostcode(postcode,signal){
+ const clean=postcode.replace(/\s/g,'').toUpperCase();
+ if(!/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(clean))throw new Error('Enter a valid UK postcode, such as SW1A 1AA.');
+ const data=await getJSON(`/api/alerts/postcode?${new URLSearchParams({postcode:clean})}`,signal);
+ if(!data.location||!Number.isFinite(data.location.lat)||!Number.isFinite(data.location.lon))throw new Error('Postcode lookup returned invalid coordinates.');
+ return data.location;
 }
-export async function loadFloods(location, radius, signal) {
-  if(location.country && location.country!=='England') throw new Error('This flood feed covers England only. Weather, traffic coverage and safety sources are shown separately below.');
-  const url = new URL('https://environment.data.gov.uk/flood-monitoring/id/floods');
-  url.search = new URLSearchParams({ lat: location.lat, long: location.lon, dist: radius });
-  const data = await getJSON(url, signal);
-  if (!Array.isArray(data.items)) throw new Error('The flood service returned an unexpected response. Please try again.');
-  return data.items.filter(item => [1, 2, 3].includes(Number(item.severityLevel))).sort((a,b) => Number(a.severityLevel)-Number(b.severityLevel));
+export async function loadFloods(location,radius,signal){
+ let country=location.country;
+ if(!country){
+  try{const coverage=await getJSON(`/api/alerts/location?${query(location)}`,signal);country=coverage.location?.country;}
+  catch(error){if(signal?.aborted)throw error;throw new Error('Flood coverage could not be confirmed. Enter a postcode to check coverage.');}
+ }
+ if(!country)throw new Error('Flood coverage could not be confirmed. Enter a postcode to check coverage.');
+ if(country!=='England')throw new Error('This flood feed covers England only. Weather, traffic coverage and safety sources are shown separately below.');
+ const data=await getJSON(`/api/alerts/floods?${query(location,radius)}`,signal);
+ if(!Array.isArray(data.items))throw new Error('The flood service returned an unexpected response. Please try again.');
+ return withFreshness(data.items,data);
 }
 export function officialLink(alert) {
   const code = alert.floodAreaID || alert.floodArea?.notation;
   return code && /^[a-z0-9_-]+$/i.test(code) ? `https://check-for-flooding.service.gov.uk/target-area/${encodeURIComponent(code)}` : 'https://check-for-flooding.service.gov.uk/';
 }
 
-export async function loadForecast(location, signal) {
-  const url = new URL('https://api.open-meteo.com/v1/forecast');
-  url.search = new URLSearchParams({latitude:location.lat, longitude:location.lon, daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_gusts_10m_max,precipitation_sum', wind_speed_unit:'kmh', temperature_unit:'celsius', precipitation_unit:'mm', timezone:'Europe/London', forecast_days:7});
-  const data = await getJSON(url, signal);
-  const d=data.daily;
-  if (!Array.isArray(d?.time) || !d.time.length || !Array.isArray(d.temperature_2m_max) || !Array.isArray(d.temperature_2m_min)) throw new Error('The weather service returned an unexpected response.');
-  return d.time.map((date,i)=>({date,code:d.weather_code?.[i],high:d.temperature_2m_max[i],low:d.temperature_2m_min[i],rain:d.precipitation_probability_max?.[i],uv:d.uv_index_max?.[i],gust:d.wind_gusts_10m_max?.[i],precipitation:d.precipitation_sum?.[i]}));
+export async function loadForecast(location,signal){
+ const data=await getJSON(`/api/alerts/forecast?${query(location)}`,signal);
+ if(!Array.isArray(data.days)||!data.days.length)throw new Error('The weather service returned an unexpected response.');
+ return withFreshness(data.days,data);
 }
 
 // Flood areas are represented by the EA's published reference points, not boundaries.
@@ -45,7 +48,7 @@ export async function loadFloodPoints(alerts, signal) {
       try {
         let area=alert.floodArea;
         if(!Number.isFinite(area?.lat)||!Number.isFinite(area?.long)) {
-          const data=await getJSON(`https://environment.data.gov.uk/flood-monitoring/id/floodAreas/${encodeURIComponent(code)}`,signal);
+          const data=await getJSON(`/api/alerts/flood-area?${new URLSearchParams({lat:0,lon:0,radius:25,code})}`,signal);
           area=data.items;
         }
         if(Number.isFinite(area?.lat)&&Number.isFinite(area?.long)&&Math.abs(area.lat)<=90&&Math.abs(area.long)<=180) points.push({alert,lat:area.lat,lon:area.long});
@@ -56,9 +59,7 @@ export async function loadFloodPoints(alerts, signal) {
 }
 
 export async function loadAirQuality(location,signal){
- const url=new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
- url.search=new URLSearchParams({latitude:location.lat,longitude:location.lon,current:'european_aqi,pm2_5,pm10',hourly:'european_aqi',forecast_days:2,timezone:'Europe/London',timeformat:'unixtime'});
- const data=await getJSON(url,signal);
+ const data=await getJSON(`/api/alerts/air?${query(location)}`,signal);
  if(!Number.isFinite(data.current?.time)||!Number.isFinite(data.current?.european_aqi)||data.current.european_aqi<0)throw new Error('Air-quality data unavailable');
- return {current:data.current,hourly:data.hourly||{}};
+ return {current:data.current,hourly:data.hourly||{},freshness:data.freshness};
 }
