@@ -1,0 +1,40 @@
+{
+  "config": {
+    "network": {
+      "allowed_domains": [
+        "air-quality-api.open-meteo.com",
+        "api.naturalresources.wales",
+        "api.open-meteo.com",
+        "api.postcodes.io",
+        "api.sainsburys.co.uk",
+        "api.tfl.gov.uk",
+        "data.police.uk",
+        "environment.data.gov.uk",
+        "floodline.sepa.org.uk",
+        "m.highwaysengland.co.uk",
+        "nerv.app",
+        "storelocator.asda.com",
+        "tile.openstreetmap.org",
+        "traffic.wales",
+        "www.earthquakes.bgs.ac.uk",
+        "www.gov.uk",
+        "www.metoffice.gov.uk",
+        "www.morrisons.com",
+        "www.tesco.com",
+        "www.traffic.gov.scot",
+        "raildata.org.uk",
+        "www.nationalrail.co.uk",
+        "www.transportapi.com",
+        "www.travelinedata.org.uk",
+        "ukpowernetworks.opendatasoft.com",
+        "www.ukpowernetworks.co.uk",
+        "outages.uk",
+        "www.nationalgrid.co.uk",
+        "connecteddata.nationalgrid.co.uk",
+        "www.gisual.com",
+        "lite.realtime.nationalrail.co.uk",
+        "realtime.nationalrail.co.uk"
+      ]
+    }
+  }
+}

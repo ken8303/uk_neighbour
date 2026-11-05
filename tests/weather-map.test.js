@@ -9,7 +9,7 @@ test('forecast and flood map work independently with accessible mobile controls'
  const context=await browser.newContext({viewport:{width:1440,height:1000}});
  const page=await context.newPage();
  await page.clock.install({time:new Date('2026-11-04T12:00:00Z')});
- await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|fuel)\?/,r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));let weatherFails=false,floodFails=false;const errors=[];
+ await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|buses|fuel)\?/,r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));let weatherFails=false,floodFails=false;const errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/alerts/air?**',r=>r.abort());
  await page.route('https://tile.openstreetmap.org/**',r=>r.abort());

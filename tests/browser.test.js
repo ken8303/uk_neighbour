@@ -10,7 +10,7 @@ test('location, postcode, alerts, refresh, failures and mobile layout', async()=
  const context=await browser.newContext({viewport:{width:1440,height:1000},geolocation:{latitude:51.5,longitude:-0.12},permissions:['geolocation']});
  const page=await context.newPage();
  await page.clock.install({time:new Date('2026-11-04T12:00:00Z')});
- await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|fuel)\?/,r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));
+ await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|buses|fuel)\?/,r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));
  let floods=0, mode='alerts';
  await page.route('**/api/alerts/location?**',r=>r.fulfill({json:{location:{country:'England'}}}));
  await page.route('**/api/alerts/forecast?**',route=>route.fulfill({json:{days:forecastFixture({time:['2026-11-04'],weather_code:[61],temperature_2m_max:[12],temperature_2m_min:[7],precipitation_probability_max:[80]})}}));

@@ -12,7 +12,7 @@ test('other alerts filter, refresh, partial failures and UK coverage render accu
  await page.route('**/api/alerts/postcode?**',r=>r.fulfill({json:{location:{lat:scotland?55.95:51.5,lon:scotland?-3.19:-.12,label:scotland?'EH1 1AA':'SW1A 1AA',country:scotland?'Scotland':'England'}}}));
  await page.route('**/api/alerts/flood*',r=>r.fulfill({json:{items:[]}}));
  await page.route('**/api/alerts/forecast?**',r=>r.fulfill({json:{days:forecastFixture({time:['2026-11-04'],weather_code:[0],temperature_2m_max:[12],temperature_2m_min:[7]})}}));
- await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|fuel)\?/,r=>{
+ await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|buses|fuel)\?/,r=>{
   const url=new URL(r.request().url());assert.equal(url.searchParams.get('lat'),scotland?'55.95':'51.5');assert.equal(url.searchParams.get('radius'),'25');
   const checkedAt='2026-11-04T12:00:00Z';
   if(url.pathname.endsWith('weather'))return weatherError?r.fulfill({status:502,json:{error:'Unavailable'}}):r.fulfill({json:{checkedAt,items:[{id:'weather1',title:'Test amber rain warning',severity:'Amber',scope:'UK feed · location not supplied',description:'Test fixture only',link:'https://www.metoffice.gov.uk/weather/warnings-and-advice/uk-warnings'}]}});
