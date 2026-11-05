@@ -1,3 +1,4 @@
+import {forecastFixture} from '../test-support/fixtures.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from '@playwright/test';
@@ -8,14 +9,16 @@ test('location, postcode, alerts, refresh, failures and mobile layout', async()=
  try{
  const context=await browser.newContext({viewport:{width:1440,height:1000},geolocation:{latitude:51.5,longitude:-0.12},permissions:['geolocation']});
  const page=await context.newPage();
- await page.route('**/api/alerts/**',r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));
+ await page.clock.install({time:new Date('2026-11-04T12:00:00Z')});
+ await page.route(/\/api\/alerts\/(?:weather|traffic|highways|safety|transport|fuel)\?/,r=>r.fulfill({status:502,json:{error:'Unavailable in this test'}}));
  let floods=0, mode='alerts';
- await page.route('https://api.open-meteo.com/**',route=>route.fulfill({json:{daily:{time:['2026-11-04'],weather_code:[61],temperature_2m_max:[12],temperature_2m_min:[7],precipitation_probability_max:[80]}}}));
- await page.route('https://air-quality-api.open-meteo.com/**',r=>r.abort());
+ await page.route('**/api/alerts/location?**',r=>r.fulfill({json:{location:{country:'England'}}}));
+ await page.route('**/api/alerts/forecast?**',route=>route.fulfill({json:{days:forecastFixture({time:['2026-11-04'],weather_code:[61],temperature_2m_max:[12],temperature_2m_min:[7],precipitation_probability_max:[80]})}}));
+ await page.route('**/api/alerts/air?**',r=>r.abort());
  await page.route('https://tile.openstreetmap.org/**',route=>route.abort());
- await page.route('https://api.postcodes.io/**',route=>route.fulfill({json:{result:{latitude:51.5,longitude:-0.12,postcode:'SW1A 1AA',country:'England'}}}));
- await page.route('https://environment.data.gov.uk/**',route=>{
-  floods++; const url=new URL(route.request().url()); assert.equal(url.searchParams.get('dist'),'25'); assert.equal(url.searchParams.get('lat'),'51.5');
+ await page.route('**/api/alerts/postcode?**',route=>route.fulfill({json:{location:{lat:51.5,lon:-0.12,label:'SW1A 1AA',country:'England'}}}));
+ await page.route('**/api/alerts/flood*',route=>{
+  floods++; const url=new URL(route.request().url()); assert.equal(url.searchParams.get('radius'),'25'); assert.equal(url.searchParams.get('lat'),'51.5');
   if(mode==='error')return route.fulfill({status:503,json:{error:'Unavailable'}});
   return route.fulfill({json:{items:mode==='empty'?[]:[{'@id':'test',severityLevel:2,severity:'Flood Warning',description:'Test river flood warning',message:'Test fixture: move to a safe place.',floodAreaID:'061WAFTEST',floodArea:{lat:51.51,long:-0.13},timeMessageChanged:'2026-11-04T12:00:00Z'}]}});
  });
@@ -32,9 +35,9 @@ test('location, postcode, alerts, refresh, failures and mobile layout', async()=
  mode='empty';await page.getByRole('button',{name:'Refresh alerts'}).click();
  await page.getByText('No active alerts found in this search.').waitFor();
  mode='error';await page.getByRole('button',{name:'Refresh alerts'}).click();
- await page.getByText('The alert or location service is unavailable. Please try again shortly.').waitFor();
+ await page.locator('.results').getByText('Showing a previous result',{exact:false}).waitFor();
  mode='alerts';await page.getByRole('button',{name:'Use my location'}).click();
- await page.getByText('1 active alert near your current location').waitFor();
+ await page.getByText('1 Environment Agency alert matched this England-only search.').waitFor();
  await page.setViewportSize({width:390,height:844});await page.reload();
  await page.screenshot({path:'/tmp/neighbour-mobile.png',fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

@@ -1,3 +1,4 @@
+import {calendarDay,upcomingForecast} from './calendar.js';
 export function airCategory(value){
  if(!Number.isFinite(value)||value<0)return 'Unavailable';
  return value<=20?'Good':value<=40?'Fair':value<=60?'Moderate':value<=80?'Poor':value<=100?'Very poor':'Extremely poor';
@@ -10,8 +11,9 @@ export function airOutlook(data,now=Date.now()){
  return {current:current.european_aqi,category:airCategory(current.european_aqi),peak:future.length?Math.max(...future):null,complete:future.length>=24,asOf:current.time};
 }
 export const thresholds='Next two forecast days: UV ≥3, high temperature ≥30°C, low ≤0°C, gust ≥60 km/h, daily rain ≥25 mm, or a snow, thunderstorm or freezing-rain weather code.';
-export function weatherAdvisories(days){
- const selected=days.slice(0,2),items=[];
+export function weatherAdvisories(days,reference=Date.now()){
+ const today=calendarDay(reference),tomorrow=new Date(Date.parse(today+'T00:00:00Z')+86400000).toISOString().slice(0,10);
+ const selected=upcomingForecast(days,today).filter(day=>day.date<=tomorrow),items=[];
  const rules=[
   {id:'uv',test:d=>Number.isFinite(d.uv)&&d.uv>=3,title:'UV protection advised',detail:d=>`Maximum UV index ${d.uv.toFixed(1)}. Use sun protection when outdoors.`,metric:'uv'},
   {id:'heat',test:d=>Number.isFinite(d.high)&&d.high>=30,title:'Hot weather forecast',detail:d=>`High ${Math.round(d.high)}°C. Plan shade, water and breaks from heat.`,metric:'high'},

@@ -2,13 +2,15 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {airCategory,airOutlook,weatherAdvisories} from '../src/advisories.js';
 import {parseTransport,getFeed} from '../server/feeds.js';
+const reference=Date.parse('2026-11-04T12:00:00Z');
+const advise=days=>weatherAdvisories(days,reference);
 const calm={date:'2026-11-04',uv:2,high:20,low:5,gust:20,precipitation:3,code:0};
 test('forecast thresholds distinguish advisories from missing data and only assess the first two days',()=>{
- const normal=weatherAdvisories([calm,{...calm,date:'2026-11-05'},{...calm,date:'2026-11-06',high:40}]);assert.deepEqual(normal,{items:[],missing:[]});
- const result=weatherAdvisories([{...calm,uv:3,high:30,low:0,gust:60,precipitation:25,code:95},{...calm,code:71}]);
+ const normal=advise([calm,{...calm,date:'2026-11-05'},{...calm,date:'2026-11-06',high:40}]);assert.deepEqual(normal,{items:[],missing:[]});
+ const result=advise([{...calm,uv:3,high:30,low:0,gust:60,precipitation:25,code:95},{...calm,code:71}]);
  assert.deepEqual(result.items.map(x=>x.id),['uv','heat','cold','wind','rain','snow','thunder']);
- const missing=weatherAdvisories([{date:'2026-11-04',uv:null},{}]);assert.equal(missing.items.length,0);assert.equal(missing.missing.length,6);
- assert.equal(weatherAdvisories([{...calm,code:66},calm]).items[0].id,'freezing-rain');
+ const missing=advise([{date:'2026-11-04',uv:null},{}]);assert.equal(missing.items.length,0);assert.equal(missing.missing.length,6);
+ assert.equal(advise([{...calm,code:66},calm]).items[0].id,'freezing-rain');
 });
 test('European AQI categories use their own boundaries and reject stale or missing data',()=>{
  assert.equal(airCategory(20),'Good');assert.equal(airCategory(21),'Fair');assert.equal(airCategory(60),'Moderate');assert.equal(airCategory(61),'Poor');assert.equal(airCategory(100),'Very poor');assert.equal(airCategory(101),'Extremely poor');assert.equal(airCategory(null),'Unavailable');

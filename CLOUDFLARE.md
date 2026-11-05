@@ -53,7 +53,7 @@ The default `npm run dev` and `npm start` remain available for Vite development 
 - The Worker API uses web-standard Request/Response APIs. The Node HTTP adapter is not included in its entry point.
 - `nodejs_compat` is enabled for bundled library compatibility. The compatibility date is pinned in configuration.
 - Browser location permission works on the deployed HTTPS domain. Users can enter a postcode instead.
-- Responses containing location-dependent API results have `Cache-Control: no-store`. Public weather/traffic payloads may be held in an individual Worker isolate for up to 60 seconds; this is an optional in-memory cache, not durable storage or a cross-isolate guarantee.
+- Responses containing location-dependent API results have `Cache-Control: no-store`. Validated public weather/traffic payloads have a 60-second fresh cache and a clearly marked fallback capped at five minutes since verification; conditional requests and single-flight fetches reduce provider load. This cache is held in an individual Worker isolate; this is an optional in-memory cache, not durable storage or a cross-isolate guarantee.
 
 ## Verify after deployment
 
@@ -61,7 +61,7 @@ The default `npm run dev` and `npm start` remain available for Vite development 
 2. Search a valid postcode, then check each alert category separately. Verify live provider responses and source coverage; empty results are not an all-clear.
 3. Check location permission, denied permission, radius selection, map zoom/reset, forecast refresh and narrow mobile layouts.
 4. Confirm `/api/alerts/weather` without parameters returns JSON 400 and `/api/unknown` returns JSON 404.
-5. If a provider blocks Cloudflare egress, inspect Worker logs and retain the unavailable state. Do not replace it with fake alerts. Browser-side flood/forecast/postcode APIs also need working CORS; map tiles need to load from OpenStreetMap.
+5. If a provider blocks Cloudflare egress, inspect Worker logs and retain the unavailable state. Do not replace it with fake alerts. All data APIs now run through the Worker, which needs working outbound provider access. Map tiles still load from OpenStreetMap in the browser.
 6. A custom domain can be added in the deployed Worker’s domain settings. Retest geolocation permission on the new origin.
 
 ## Verification completed in this workspace
@@ -69,7 +69,7 @@ The default `npm run dev` and `npm start` remain available for Vite development 
 - Production Vite build and Wrangler deployment dry run passed.
 - Wrangler’s actual local Workers runtime served HTML and the built JavaScript successfully.
 - Runtime API checks returned the expected JSON 400, 404 and 405 responses, including empty-coordinate validation. A blocked provider returned JSON 502.
-- All 17 tests passed with four browser flows targeting the local Workers runtime, including desktop/mobile interaction coverage. The tests use provider fixtures; they do not prove live upstream availability.
+- All 35 tests passed with five browser flows targeting the local Workers runtime, including desktop/mobile interaction coverage. The tests use provider fixtures; they do not prove live upstream availability.
 
 No Cloudflare deployment or account authentication was performed. The original live provider checks were blocked by workspace policy. Since environment publication, weather/Met Office/TfL live checks succeeded; the new air-quality host is still blocked pending its saved domain addition. Cloudflare-side upstream access, provider schema/permission changes, and browser CORS must be checked on the deployed origin. Existing coverage limitations remain: flood data is England-only, live traffic covers TfL roads in London, weather entries without polygons are not confirmed local, and safety is official links plus police-neighbourhood lookup rather than live incidents.
 
@@ -77,6 +77,20 @@ Reference: https://developers.cloudflare.com/workers/static-assets/
 
 ## Expanded advisories
 
-The Worker also serves `/api/alerts/transport` for TfL rail mode statuses. Health, food, power and water sections are labelled official-link directories, not live feeds. Air-quality forecasts are fetched by the browser from `air-quality-api.open-meteo.com`; allow that host in your development environment. UV and weather app advisories reuse the weather forecast, with explicit thresholds and missing-data states. No new Cloudflare bindings or application secrets are needed. See README.md for exact coverage, freshness and calculation rules.
+The Worker also serves `/api/alerts/transport` for TfL rail mode statuses. Health and food remain official-link directories. RG1 power and water use `/api/alerts/power` and `/api/alerts/water`; see README for limited coverage and pending live verification. Server egress must allow `external.distribution.prd.ssen.co.uk` and `www.thameswater.co.uk`. Air-quality forecasts are fetched by the browser from `air-quality-api.open-meteo.com`; allow that host in your development environment. UV and weather app advisories reuse the weather forecast, with explicit thresholds and missing-data states. No new Cloudflare bindings or application secrets are needed. See README.md for exact coverage, freshness and calculation rules.
 
 Expanded-coverage validation: all 17 tests also pass against the updated local Worker. A live TfL fetch succeeds in Node but fails even in a minimal standalone local diagnostic Worker with a runtime DNS lookup failure (temporary failure in name resolution). This local-runtime egress limitation is separate from application parsing; verify upstream reachability on the deployed Worker before claiming live service readiness.
+
+## Live-feed reliability update
+
+No extra Cloudflare bindings or secrets are required. Same-origin alert responses now carry freshness metadata and may return a labelled `stale` result on temporary provider failure. API results retain `Cache-Control: no-store`; the internal bounded public-payload cache remains isolate-local. Clients automatically refresh while visible/online, pause on request, show last-successful/source-update times, and expire retained values. No push scheduler or persistent user-location storage was added. The test suite contains 23 tests and can be run against local Wrangler using `TEST_BASE_URL`. See README.md for exact intervals, retention and rate-limit behaviour.
+
+## Direct-data routing
+
+The Worker now handles postcode lookup, England flood/area data, forecasts, and air quality alongside weather/traffic/rail/police sources. These routes fetch fixed provider URLs server-side so browser vendor-CORS failures are avoided. New API paths use the existing `/api/*` Worker-first routing; no new Cloudflare bindings or keys are needed. Browser map tiles remain external. Coordinate-dependent source data is not added to the public-feed cache.
+
+A National Highways RSS adapter is included under `/api/alerts/highways` to extend strategic-road coverage beyond London. Its live endpoint/schema is still unverified because the environment blocks that host; the UI discloses this. Keep this distinction when testing after deployment. All 28 tests and the deployment dry run pass with provider fixtures; do not infer live readiness for newly blocked sources from those results.
+
+Review fixes add the same-origin `/api/alerts/location` reverse-coverage lookup using the existing Postcodes.io host; no new binding, key or domain is required. GPS searches with unknown or non-English coverage do not produce a false zero-alert result. Date handling now uses London midnight (including DST), and Node-only malformed request errors are contained by the adapter. The suite has 35 tests and remains runnable against local Wrangler.
+
+The fuel comparison uses the same Fetch-compatible Worker handler and fixed retailer URLs. No browser CORS proxy or Node-only fuel dependency is required. Verify retailer connectivity and current data schemas before advertising live fuel coverage; [fuel documentation](FUEL-PRICES.md) records the pending checks. A successful Worker dry run does not verify upstream connectivity.
